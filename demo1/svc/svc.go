@@ -14,6 +14,7 @@ func CallServiceA(ctx context.Context) {
 	ctx, span := tracer.Start(ctx, "ServiceA")
 	defer span.End()
 	
+	//可以记录一些信息，例如日志，请求参数 sql等
 	span.SetAttributes(
 		attribute.String("service info", "this is A service"),
 	)

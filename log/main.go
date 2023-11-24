@@ -8,13 +8,12 @@ import (
 	
 	"go.opentelemetry.io/otel"
 	
-	`go.opentelemetry.io/otel/attribute`
 	"go.opentelemetry.io/otel/exporters/trace/jaeger"
 	`go.opentelemetry.io/otel/sdk/resource`
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	`go.opentelemetry.io/otel/semconv`
 	
-	svc `otel/demo1/svc`
+	`otel/log/pkg`
 )
 
 // 初始化 OpenTelemetry
@@ -49,7 +48,7 @@ func main() {
 	}()
 	
 	//启动http服务器
-	http.HandleFunc("/demo", handleRequest)
+	http.HandleFunc("/log/demo", handleRequest)
 	
 	go func() {
 		if err := http.ListenAndServe(":8080", nil); err != nil {
@@ -61,29 +60,8 @@ func main() {
 	SimulateRequest()
 }
 
-func handleRequest(w http.ResponseWriter, req *http.Request) {
-	tracer := otel.Tracer("root")
-	//开始创建root span
-	ctx, span := tracer.Start(req.Context(), "span root")
-	defer span.End()
-	
-	//可以在span上记录一些信息，例如日志、请求参数、sql语句等
-	span.SetAttributes(
-		attribute.String("some root service info", "This is the root service"),
-	)
-	
-	//访问服务A
-	svc.CallServiceA(ctx)
-	
-	//访问服务B
-	svc.CallServiceB(ctx)
-	
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "Response from Service Root")
-}
-
 func SimulateRequest()  {
-	req, err := http.NewRequest("GET", "http://localhost:8080/demo", nil)
+	req, err := http.NewRequest("GET", "http://localhost:8080/log/demo", nil)
 	if err != nil {
 		log.Fatalf("Creating request fail: %v", err)
 	}
@@ -94,4 +72,30 @@ func SimulateRequest()  {
 	}
 	defer resp.Body.Close()
 	fmt.Println("Response received from Root Service")
+}
+
+func handleRequest(w http.ResponseWriter, req *http.Request) {
+	tracer := otel.Tracer("root")
+	//开始创建root span
+	ctx, span := tracer.Start(req.Context(), "root service")
+	defer span.End()
+	
+	pkg.Log.Debug(ctx, "this is root service")
+	
+	//访问服务A
+	callServiceA(ctx)
+	
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "Response from Service Root")
+}
+
+// Service A
+func callServiceA(ctx context.Context) {
+	tracer := otel.Tracer("service A")
+	ctx, span := tracer.Start(ctx, "ServiceA")
+	defer span.End()
+	
+	pkg.Log.Debug(ctx, "this is A service")
+	
+	fmt.Println("Service A")
 }
